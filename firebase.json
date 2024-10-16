@@ -18,6 +18,13 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/callback",
+        "destination": "/callback.html"
+      }
     ]
   }
 }
+

@@ -62,7 +62,7 @@ async function postTweet(content) {
 // Function to get the latest tweet posted by the bot
 async function getLatestTweet() {
   try {
-    const timeline = await twitterClient.v2.userTimeline('YOUR_TWITTER_USER_ID', { max_results: 5 });
+    const timeline = await twitterClient.v2.userTimeline('twitterUserId', { max_results: 5 });
     return timeline.data?.[0]?.id || null;
   } catch (error) {
     console.error('Error fetching latest tweet:', error);
@@ -70,11 +70,11 @@ async function getLatestTweet() {
   }
 }
 
-// Function to respond to replies of the latest tweet
 async function respondToReplies(tweetId) {
   try {
-    const replies = await twitterClient.v2.search(`to:YOUR_TWITTER_USERNAME`, {
+    const replies = await twitterClient.v2.search(`to:${twitterUsername}`, {
       since_id: tweetId,
+      'tweet.fields': 'in_reply_to_user_id,author_id',
       max_results: 10,
     });
 
@@ -84,6 +84,11 @@ async function respondToReplies(tweetId) {
     }
 
     for (const reply of replies.data) {
+      // Check if the reply is in response to the bot's tweet
+      if (reply.in_reply_to_user_id !== twitterUserId) {
+        continue;
+      }
+
       // Generate a response using OpenAI based on the reply content
       const prompt = `Respond to this tweet in a friendly and engaging way:\n"${reply.text}"`;
       const responseText = await generateTweet(prompt);

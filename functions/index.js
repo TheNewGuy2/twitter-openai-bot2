@@ -57,6 +57,45 @@ async function postTweet(content) {
   }
 }
 
+// Function to get the latest tweet posted by the bot
+async function getLatestTweet() {
+  try {
+    const timeline = await twitterClient.v2.userTimeline('YOUR_TWITTER_USER_ID', { max_results: 5 });
+    return timeline.data?.[0]?.id || null;
+  } catch (error) {
+    console.error('Error fetching latest tweet:', error);
+    return null;
+  }
+}
+
+// Function to respond to replies of the latest tweet
+async function respondToReplies(tweetId) {
+  try {
+    const replies = await twitterClient.v2.search(`to:YOUR_TWITTER_USERNAME`, {
+      since_id: tweetId,
+      max_results: 10,
+    });
+
+    if (!replies.data || replies.data.length === 0) {
+      console.log('No new replies to respond to.');
+      return;
+    }
+
+    for (const reply of replies.data) {
+      // Generate a response using OpenAI based on the reply content
+      const prompt = `Respond to this tweet in a friendly and engaging way:\n"${reply.text}"`;
+      const responseText = await generateTweet(prompt);
+
+      if (responseText) {
+        await twitterClient.v2.reply(responseText, reply.id);
+        console.log(`Replied to tweet ${reply.id} with: ${responseText}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error responding to replies:', error);
+  }
+}
+
 // Firebase Function to generate and post a tweet
 exports.tweetBot = functions.pubsub.schedule('every 6 hours').onRun(async (context) => {
   const prompt = `
@@ -141,6 +180,18 @@ Note The tweet should be selfcontained and not include this context or instructi
     console.log(`Tweet posted: ${tweetContent}`);
   } else {
     console.error('Failed to generate tweet content.');
+  }
+  return null;
+});
+
+// Firebase Function to check for replies and respond every hour
+exports.replyBot = functions.pubsub.schedule('every 1 hours').onRun(async (context) => {
+  const latestTweetId = await getLatestTweet();
+
+  if (latestTweetId) {
+    await respondToReplies(latestTweetId);
+  } else {
+    console.error('Failed to fetch the latest tweet.');
   }
   return null;
 });

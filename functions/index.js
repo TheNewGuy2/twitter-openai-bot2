@@ -8,6 +8,8 @@ const twitterApiSecretKey = functions.config().twitter.api_secret_key;
 const twitterAccessToken = functions.config().twitter.access_token;
 const twitterAccessTokenSecret = functions.config().twitter.access_token_secret;
 const openaiApiKey = functions.config().openai.api_key;
+const twitterUserId = functions.config().twitter.user_id;
+const twitterUsername = functions.config().twitter.username;
 
 // Configure Twitter client
 const twitterClient = new TwitterApi({

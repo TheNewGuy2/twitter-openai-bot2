@@ -30,7 +30,7 @@ async function generateTweet(prompt) {
           { role: 'user', content: prompt }
         ],
         max_tokens: 280,
-        temperature: 0.8,
+        temperature: 0.95,
       },
       {
         headers: {

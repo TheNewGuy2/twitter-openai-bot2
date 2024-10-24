@@ -33,6 +33,8 @@ jobs:
         TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
         TWITTER_API_SECRET_KEY: ${{ secrets.TWITTER_API_SECRET_KEY }}
         TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+        TWITTER_USER_ID: ${{ secrets.TWITTER_USER_ID }}
+        TWITTER_USERNAME: ${{ secrets.TWITTER_USERNAME }}
         TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
       run: |
         npm install -g firebase-tools
@@ -41,4 +43,6 @@ jobs:
         firebase functions:config:set twitter.api_secret_key="$TWITTER_API_SECRET_KEY"
         firebase functions:config:set twitter.access_token="$TWITTER_ACCESS_TOKEN"
         firebase functions:config:set twitter.access_token_secret="$TWITTER_ACCESS_TOKEN_SECRET"
+        firebase functions:config:set twitter.user_id="$TWITTER_USER_ID"
+        firebase functions:config:set twitter.username="$TWITTER_USERNAME"       
         firebase deploy --only functions

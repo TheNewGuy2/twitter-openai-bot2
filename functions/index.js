@@ -3,7 +3,7 @@ const { TwitterApi } = require('twitter-api-v2');
 const axios = require('axios');
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin SDK//////
+// Initialize Firebase Admin SDK////
 admin.initializeApp();
 const db = admin.firestore();
 

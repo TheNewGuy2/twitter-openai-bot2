@@ -79,19 +79,28 @@ async function getLatestTweet() {
 // Functions to get and set the last processed reply ID
 async function getLastReplyId() {
   try {
+    console.log('Attempting to get last reply ID from Firestore...');
     const doc = await db.collection('botData').doc('lastReplyId').get();
-    return doc.exists ? doc.data().replyId : null;
+    if (doc.exists) {
+      console.log('Successfully retrieved last reply ID:', doc.data().replyId);
+      return doc.data().replyId;
+    } else {
+      console.log('No last reply ID found in Firestore.');
+      return null;
+    }
   } catch (error) {
-    console.error('Error getting last reply ID:', error);
+    console.error('Error getting last reply ID from Firestore:', error);
     return null;
   }
 }
 
 async function setLastReplyId(replyId) {
   try {
+    console.log('Attempting to set last reply ID in Firestore to:', replyId);
     await db.collection('botData').doc('lastReplyId').set({ replyId });
+    console.log('Successfully updated last reply ID in Firestore.');
   } catch (error) {
-    console.error('Error setting last reply ID:', error);
+    console.error('Error setting last reply ID in Firestore:', error);
   }
 }
 

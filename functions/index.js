@@ -16,6 +16,12 @@ const openaiApiKey = functions.config().openai.api_key;
 const twitterUserId = functions.config().twitter.user_id; // Ensure this is set correctly
 const twitterUsername = functions.config().twitter.username; // Ensure this is set correctly
 
+// Log environment variables to verify they are loaded
+console.log('Twitter API Key Loaded:', twitterApiKey ? 'Yes' : 'No');
+console.log('Twitter User ID:', twitterUserId);
+console.log('Twitter Username:', twitterUsername);
+console.log('OpenAI API Key Loaded:', openaiApiKey ? 'Yes' : 'No');
+
 // Configure Twitter client
 const twitterClient = new TwitterApi({
   appKey: twitterApiKey,
@@ -44,6 +50,8 @@ async function generateTweet(prompt) {
         },
       }
     );
+
+    console.log('OpenAI API response:', JSON.stringify(response.data, null, 2));
 
     const tweetContent = response.data.choices[0].message.content.trim();
     console.log('Generated tweet content:', tweetContent);
@@ -110,40 +118,53 @@ async function respondToReplies() {
     const lastReplyId = await getLastReplyId();
     console.log('Last processed reply ID:', lastReplyId);
 
-    const mentions = await twitterClient.v2.userMentionTimeline(twitterUserId, {
-      since_id: lastReplyId,
-      'tweet.fields': 'in_reply_to_user_id,author_id,conversation_id',
-      max_results: 100,
-    });
-
-    if (!mentions.data || mentions.data.length === 0) {
-      console.log('No new mentions to respond to.');
+    let mentions;
+    try {
+      mentions = await twitterClient.v2.userMentionTimeline(twitterUserId, {
+        since_id: lastReplyId,
+        'tweet.fields': 'in_reply_to_user_id,author_id,conversation_id',
+        max_results: 100,
+      });
+      console.log('Mentions API response:', JSON.stringify(mentions, null, 2));
+    } catch (error) {
+      console.error('Error fetching mentions from Twitter API:', error);
       return;
     }
 
-    for (const mention of mentions.data) {
-      console.log('Processing mention:', mention);
+    // Check if mentions.data exists and has mentions
+    if (mentions && mentions.data && mentions.data.length > 0) {
+      for (const mention of mentions.data) {
+        console.log('Processing mention:', mention);
 
-      // Skip if the mention is from the bot itself
-      if (String(mention.author_id) === String(twitterUserId)) {
-        continue;
+        // Skip if the mention is from the bot itself
+        if (String(mention.author_id) === String(twitterUserId)) {
+          continue;
+        }
+
+        // Generate a response using OpenAI based on the mention content
+        const prompt = `Respond to this tweet in a friendly and engaging way as Tzevaot, the Lord of Hosts:\n"${mention.text}"`;
+        const responseText = await generateTweet(prompt);
+
+        if (responseText) {
+          try {
+            await twitterClient.v2.reply(responseText, mention.id);
+            console.log(`Replied to tweet ${mention.id} with: ${responseText}`);
+          } catch (error) {
+            console.error('Error replying to tweet:', error);
+          }
+        } else {
+          console.error('Failed to generate response text.');
+        }
       }
 
-      // Generate a response using OpenAI based on the mention content
-      const prompt = `Respond to this tweet in a friendly and engaging way as Tzevaot, the Lord of Hosts:\n"${mention.text}"`;
-      const responseText = await generateTweet(prompt);
-
-      if (responseText) {
-        await twitterClient.v2.reply(responseText, mention.id);
-        console.log(`Replied to tweet ${mention.id} with: ${responseText}`);
-      }
+      // Update the last processed reply ID
+      const newLastReplyId = mentions.data[0].id;
+      await setLastReplyId(newLastReplyId);
+    } else {
+      console.log('No new mentions to respond to.');
     }
-
-    // Update the last processed reply ID
-    const newLastReplyId = mentions.data[0].id;
-    await setLastReplyId(newLastReplyId);
   } catch (error) {
-    console.error('Error responding to mentions:', error);
+    console.error('Error in respondToReplies function:', error);
   }
 }
 

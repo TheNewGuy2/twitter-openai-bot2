@@ -129,9 +129,8 @@ async function respondToReplies() {
       });
       console.log('Mentions API response:', JSON.stringify(mentions, null, 2));
 
-      // Access the tweets using mentions.data
-      const tweets = mentions.data;
-
+      // Access the tweets using mentions.tweets
+      const tweets = mentions.tweets;
       console.log('Number of mentions fetched:', tweets ? tweets.length : 0);
     } catch (error) {
       console.error('Error fetching mentions from Twitter API:', error);
@@ -139,8 +138,8 @@ async function respondToReplies() {
     }
 
     // Ensure tweets are available before processing
-    if (mentions && mentions.data && mentions.data.length > 0) {
-      for (const mention of mentions.data) {
+    if (mentions && mentions.tweets && mentions.tweets.length > 0) {
+      for (const mention of mentions.tweets) {
         try {
           console.log(`Processing mention from author ID ${mention.author_id}, tweet ID ${mention.id}`);
 
@@ -173,7 +172,7 @@ async function respondToReplies() {
       }
 
       // Update the last processed reply ID
-      const newLastReplyId = mentions.data[0].id;
+      const newLastReplyId = mentions.tweets[0].id;
       await setLastReplyId(newLastReplyId);
       console.log('Updated lastReplyId to:', newLastReplyId);
     } else {

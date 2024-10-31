@@ -112,7 +112,6 @@ async function setLastReplyId(replyId) {
     console.error('Error setting last reply ID in Firestore:', error);
   }
 }
-
 // Function to respond to mentions
 async function respondToReplies() {
   try {

@@ -6,6 +6,7 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
+console.log('Firestore initialized:', !!db);
 
 // Load environment variables
 const twitterApiKey = functions.config().twitter.api_key;
@@ -115,51 +116,67 @@ async function setLastReplyId(replyId) {
 // Function to respond to mentions
 async function respondToReplies() {
   try {
+    console.log('Starting respondToReplies function');
+
     const lastReplyId = await getLastReplyId();
     console.log('Last processed reply ID:', lastReplyId);
 
     let mentions;
     try {
       mentions = await twitterClient.v2.userMentionTimeline(twitterUserId, {
-        since_id: lastReplyId,
+        since_id: lastReplyId || undefined,
         'tweet.fields': 'in_reply_to_user_id,author_id,conversation_id',
         max_results: 100,
       });
       console.log('Mentions API response:', JSON.stringify(mentions, null, 2));
+
+      // Access the tweets using mentions.data
+      const tweets = mentions.data;
+
+      console.log('Number of mentions fetched:', tweets ? tweets.length : 0);
     } catch (error) {
       console.error('Error fetching mentions from Twitter API:', error);
       return;
     }
 
-    // Check if mentions.data exists and has mentions
+    // Ensure tweets are available before processing
     if (mentions && mentions.data && mentions.data.length > 0) {
       for (const mention of mentions.data) {
-        console.log('Processing mention:', mention);
+        try {
+          console.log(`Processing mention from author ID ${mention.author_id}, tweet ID ${mention.id}`);
 
-        // Skip if the mention is from the bot itself
-        if (String(mention.author_id) === String(twitterUserId)) {
-          continue;
-        }
-
-        // Generate a response using OpenAI based on the mention content
-        const prompt = `Respond to this tweet in a friendly and engaging way as Tzevaot, the Lord of Hosts:\n"${mention.text}"`;
-        const responseText = await generateTweet(prompt);
-
-        if (responseText) {
-          try {
-            await twitterClient.v2.reply(responseText, mention.id);
-            console.log(`Replied to tweet ${mention.id} with: ${responseText}`);
-          } catch (error) {
-            console.error('Error replying to tweet:', error);
+          // Skip if the mention is from the bot itself
+          if (String(mention.author_id) === String(twitterUserId)) {
+            console.log('Skipping mention from self.');
+            continue;
           }
-        } else {
-          console.error('Failed to generate response text.');
+
+          // Generate a response using OpenAI based on the mention content
+          const prompt = `Respond to this tweet in a friendly and engaging way as Tzevaot, the Lord of Hosts:\n"${mention.text}"`;
+          console.log('OpenAI prompt:', prompt);
+
+          const responseText = await generateTweet(prompt);
+          console.log('Generated responseText:', responseText);
+
+          if (responseText) {
+            try {
+              await twitterClient.v2.reply(responseText, mention.id);
+              console.log(`Replied to tweet ${mention.id} with: ${responseText}`);
+            } catch (error) {
+              console.error('Error replying to tweet:', error);
+            }
+          } else {
+            console.error('Failed to generate response text.');
+          }
+        } catch (error) {
+          console.error('Error processing mention:', error);
         }
       }
 
       // Update the last processed reply ID
       const newLastReplyId = mentions.data[0].id;
       await setLastReplyId(newLastReplyId);
+      console.log('Updated lastReplyId to:', newLastReplyId);
     } else {
       console.log('No new mentions to respond to.');
     }
@@ -303,4 +320,30 @@ Note: The tweet should be self-contained and not include this context or instruc
 exports.replyBot = functions.pubsub.schedule('every 1 hours').onRun(async (context) => {
   await respondToReplies();
   return null;
+});
+
+
+exports.testFirestore = functions.https.onRequest(async (req, res) => {
+  try {
+    console.log('Testing Firestore write operation...');
+    await db.collection('testCollection').doc('testDoc').set({ testField: 'testValue' });
+    console.log('Firestore write successful.');
+
+    console.log('Testing Firestore read operation...');
+    const doc = await db.collection('testCollection').doc('testDoc').get();
+    if (doc.exists) {
+      console.log('Firestore read successful:', doc.data());
+      res.status(200).send(`Firestore read successful: ${JSON.stringify(doc.data())}`);
+    } else {
+      console.log('No document found in Firestore.');
+      res.status(404).send('No document found in Firestore.');
+    }
+  } catch (error) {
+    console.error('Error testing Firestore:', error);
+    res.status(500).send(`Error testing Firestore: ${error.message}`);
+  }
+});
+exports.replyBotTest = functions.https.onRequest(async (req, res) => {
+  await respondToReplies();
+  res.send('replyBotTest function executed.');
 });

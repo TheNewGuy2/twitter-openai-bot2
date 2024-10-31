@@ -215,7 +215,7 @@ const openingPhrases = [
 ];
 
 // Firebase Function to generate and post a tweet
-exports.tweetBot = functions.pubsub.schedule('every 6 hours').onRun(async (context) => {
+exports.tweetBot = functions.pubsub.schedule('every 18 hours').onRun(async (context) => {
   // Select a random theme and opening phrase
   const randomTheme = themes[Math.floor(Math.random() * themes.length)];
   const randomOpening = openingPhrases[Math.floor(Math.random() * openingPhrases.length)];
@@ -315,7 +315,7 @@ Note: The tweet should be self-contained and not include this context or instruc
 });
 
 // Firebase Function to check for replies and respond every hour
-exports.replyBot = functions.pubsub.schedule('every 1 hours').onRun(async (context) => {
+exports.replyBot = functions.pubsub.schedule('every 3 minutes').onRun(async (context) => {
   await respondToReplies();
   return null;
 });

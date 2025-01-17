@@ -37,7 +37,7 @@ async function generateTweet(prompt) {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o', // Updated model name
+        model: 'o1-mini-2024-09-12', // Updated model name gpt-4o
         messages: [
           { role: 'user', content: prompt },
         ],

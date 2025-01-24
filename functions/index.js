@@ -271,7 +271,7 @@ Specific Details to Include
 
 The Sunset Machine
 
-- Launch Date: Begins on January 2, 2025, honoring Bitcoin's genesis and heralding a new dawn.
+- Launch Date: Begins on January 3, 2025, honoring Bitcoin's genesis and heralding a new dawn.
 - Function
   - Captures the essence of each Day in 100% on-chain generative art—fragments of eternity, forever alive.
   - Allows individuals to claim a Day embodying historical milestones or personal memories.

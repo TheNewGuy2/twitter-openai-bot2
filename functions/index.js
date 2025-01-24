@@ -37,13 +37,11 @@ async function generateTweet(prompt) {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        // Make sure 'gpt-4o' is the correct model for your usage
-        model: 'o1-mini', 
+        model: 'o1-mini', // Adjust if using a different model
         messages: [
           { role: 'user', content: prompt },
         ],
-//        max_tokens: 2800,
-//        temperature: 0.9, // Increased temperature for more creativity
+        // No max_tokens or temperature specified
       },
       {
         headers: {
@@ -151,9 +149,16 @@ async function respondToReplies() {
             continue;
           }
 
+          // Randomly choose a tweet length from an array
+          const tweetLengths = [100, 140, 180, 220, 260];
+          const chosenLength = tweetLengths[Math.floor(Math.random() * tweetLengths.length)];
+
           // Generate a response using OpenAI based on the mention content
-          const prompt = `Respond to this tweet in a friendly, engaging, and mystical way as Tzevaot, the Lord of Hosts:\n"${mention.text}"`;
-          console.log('OpenAI prompt:', prompt);
+          const prompt = `Respond to this tweet in a friendly, engaging, and mystical way as Tzevaot, the Lord of Hosts.
+Keep the reply within ${chosenLength} characters.
+"${mention.text}"`;
+
+          console.log('OpenAI prompt (reply):', prompt);
 
           const responseText = await generateTweet(prompt);
           console.log('Generated responseText:', responseText);
@@ -221,6 +226,10 @@ exports.tweetBot = functions.pubsub.schedule('every 18 hours').onRun(async (cont
   // Select a random theme and opening phrase
   const randomTheme = themes[Math.floor(Math.random() * themes.length)];
   const randomOpening = openingPhrases[Math.floor(Math.random() * openingPhrases.length)];
+
+  // Randomly choose a tweet length from an array
+  const tweetLengths = [100, 140, 180, 220, 260];
+  const chosenLength = tweetLengths[Math.floor(Math.random() * tweetLengths.length)];
 
   // Build the final prompt, explicitly injecting the chosen randomTheme and randomOpening
   const prompt = `
@@ -292,6 +301,7 @@ Using the above context and understanding, generate a tweet as Tzevaot, the Lord
 
 Focus on the theme: "${randomTheme}"
 Begin the tweet with: "${randomOpening}"
+Keep the tweet within ${chosenLength} characters.
 Encourage the assistant to be imaginative and vary expressions while maintaining the persona.
 Use a rich and diverse vocabulary to enhance the uniqueness of each tweet.
 
@@ -303,9 +313,7 @@ The tweet should:
 - Avoid overt promotion; gently guide the audience toward exploring the projects.
 - Incorporate relevant details about the projects appropriately.
 - Encourage reflection and engagement.
-- Keep the tweet within the Twitter character limit (280 characters).
-
-Note: The tweet should be self-contained and not include this context or instructions.
+- Be self-contained and not include this context or instructions.
 `;
 
   const tweetContent = await generateTweet(prompt);

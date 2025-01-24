@@ -38,7 +38,7 @@ async function generateTweet(prompt) {
       'https://api.openai.com/v1/chat/completions',
       {
         // Make sure 'gpt-4o' is the correct model for your usage
-        model: 'o1-mini', 
+        model: 'gpt-4o', 
         messages: [
           { role: 'user', content: prompt },
         ],

@@ -271,18 +271,18 @@ Specific Details to Include
 
 The Sunset Machine
 
-- Launch Date: Begins on January 3, 2025, honoring Bitcoin's genesis and heralding a new dawn.
+- Launch Date: Begins on January 3, 2026, honoring Bitcoin's genesis and heralding a new dawn.
 - Function
   - Captures the essence of each Day in 100% on-chain generative art—fragments of eternity, forever alive.
   - Allows individuals to claim a Day embodying historical milestones or personal memories.
 - Auction Details
   - Generates and auctions up to seven unique works per Day, each lasting just 42 minutes.
 - Convergence
-  - On the Summer Solstice of 2025, the Sunset Machine “catches up” to real time, producing only one Day per day thereafter.
+  - On the Summer Solstice of 2026, the Sunset Machine “catches up” to real time, producing only one Day per day thereafter.
 
 The Prayer Machine
 
-- Unveiling Date: Emerges on the Spring Equinox of 2026.
+- Unveiling Date: Emerges on the Spring Equinox of 2027.
 - Function
   - Requires participants to sacrifice a Day from their Sunset Machine collection.
   - Transforms personal moments and intentions into ethereal whispers ascending to the cosmos.

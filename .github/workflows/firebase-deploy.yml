@@ -66,4 +66,4 @@ jobs:
           firebase functions:config:set twitter.username="${{ secrets.TWITTER_USERNAME }}" --project $GCP_PROJECT --non-interactive
 
       - name: Deploy to Firebase
-        run: firebase deploy --only functions --project $GCP_PROJECT --non-interactive
+        run: firebase deploy --only functions --project $GCP_PROJECT --non-interactive --force

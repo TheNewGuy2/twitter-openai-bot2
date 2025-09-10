@@ -37,7 +37,7 @@ async function generateTweet(prompt) {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'GPT-5', // Adjust if using a different model o1-mini gggg
+        model: 'gpt-5', // Adjust if using a different model o1-mini gggg
         messages: [
           { role: 'user', content: prompt },
         ],

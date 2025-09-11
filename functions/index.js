@@ -35,7 +35,8 @@ const twitterClient = new TwitterApi({
 async function generateTweet(prompt) {
   try {
     const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
+      'https://api.openai.com/v1/completions',///      'https://api.openai.com/v1/chat/completions',
+
       {
         model: 'o3-pro', // Adjust if using a different model o1-mini gggg gpt-5
         messages: [

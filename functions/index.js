@@ -38,7 +38,7 @@ async function generateTweet(prompt) {
       'https://api.openai.com/v1/chat/completions',
 
       {
-        model: 'gpt-5', /// Adjust if using a different model o1-mini gggg gpt-5
+        model: 'gpt-5.1', /// Adjust if using a different model o1-mini gggg gpt-5
         messages: [
           { role: 'user', content: prompt },
         ],

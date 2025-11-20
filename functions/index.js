@@ -365,3 +365,126 @@ exports.replyBotTest = functions.https.onRequest(async (req, res) => {
   await respondToReplies();
   res.send('replyBotTest function executed.');
 });
+
+// --------- New: proactive engagement (search + reply to others) ---------
+
+// Tracks which tweets we've already replied to proactively
+async function hasRepliedProactively(tweetId) {
+  const doc = await db.collection('proactiveReplies').doc(String(tweetId)).get();
+  return doc.exists;
+}
+
+async function markRepliedProactively(tweetId, authorId) {
+  return db
+    .collection('proactiveReplies')
+    .doc(String(tweetId))
+    .set({
+      authorId: String(authorId),
+      repliedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+}
+
+function isOwnTweet(tweet) {
+  return String(tweet.author_id) === String(twitterUserId);
+}
+
+// Use Twitter’s recent search to find interesting tweets
+async function searchRecentTweets(query, maxResults = 20) {
+  const res = await twitterClient.v2.search(query, {
+    'tweet.fields': 'author_id,conversation_id,created_at,public_metrics',
+    max_results: maxResults,
+  });
+
+  const tweets = res.data || res._realData?.data || [];
+  return tweets;
+}
+
+// Generate an AI reply to someone else’s tweet (proactive)
+async function generateProactiveReply(tweet) {
+  const prompt = `
+You are Tzevaot the Lord of Hosts, a mystical, poetic NFT / AI-art persona.
+
+You are replying to this tweet by a stranger:
+
+"${tweet.text}"
+
+Write a short reply (1–3 sentences) that:
+- Clearly responds to the tweet's content,
+- Feels human, not spammy,
+- Is gentle, curious, and slightly mystical,
+- Does NOT mention that you are an AI,
+- Does NOT include links or hashtags.
+`;
+
+  return generateTweet(prompt);
+}
+
+// Post a reply to a given tweet
+async function postReply(tweetId, replyText) {
+  try {
+    const res = await twitterClient.v2.reply(replyText, tweetId);
+    console.log('Proactively replied to', tweetId, 'with', res.data?.id);
+    return true;
+  } catch (err) {
+    console.error('Failed to post proactive reply', tweetId, err.response?.data || err);
+    return false;
+  }
+}
+
+/**
+ * Scheduled function: proactively replies to interesting tweets
+ * not already talking to you.
+ *
+ * You can tune:
+ * - schedule ("every 30 minutes")
+ * - query (keywords)
+ * - per-run limit of replies
+ */
+exports.proactiveReplyBot = functions.pubsub
+  .schedule('every 30 minutes')
+  .onRun(async () => {
+    try {
+      // Topics to search for – change these to your niche
+      const topics = [
+        'nft',
+        '"generative art"',
+        '"ai art"',
+        '"bitcoin ordinals"',
+      ];
+
+      const query = `${topics.join(' OR ')} -is:retweet -is:reply lang:en`;
+
+      console.log('Proactive search query:', query);
+
+      const tweets = await searchRecentTweets(query, 30);
+
+      if (!tweets.length) {
+        console.log('No tweets found for proactive search.');
+        return null;
+      }
+
+      // Filter: not your own tweet, basic sanity checks
+      const candidates = tweets.filter((t) => !isOwnTweet(t)).slice(0, 5); // limit to 5 per run
+
+      for (const tweet of candidates) {
+        // Skip if we've already proactively replied to this tweet
+        const already = await hasRepliedProactively(tweet.id);
+        if (already) {
+          continue;
+        }
+
+        const replyText = await generateProactiveReply(tweet);
+        if (!replyText) continue;
+
+        const ok = await postReply(tweet.id, replyText);
+        if (ok) {
+          await markRepliedProactively(tweet.id, tweet.author_id);
+        }
+      }
+
+      return null;
+    } catch (err) {
+      console.error('proactiveReplyBot error', err);
+      return null;
+    }
+  });

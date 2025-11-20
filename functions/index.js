@@ -151,7 +151,7 @@ async function respondToReplies() {
           }
 
           // Randomly choose a tweet length from an array
-          const tweetLengths = [100, 140, 180, 220, 260];
+          const tweetLengths = [10, 20, 50, 100, 140, 180, 220, 260];
           const chosenLength = tweetLengths[Math.floor(Math.random() * tweetLengths.length)];
 
           // Generate a response using OpenAI based on the mention content
@@ -229,7 +229,7 @@ exports.tweetBot = functions.pubsub.schedule('every 18 hours').onRun(async (cont
   const randomOpening = openingPhrases[Math.floor(Math.random() * openingPhrases.length)];
 
   // Randomly choose a tweet length from an array
-  const tweetLengths = [100, 140, 180, 220, 260];
+  const tweetLengths = [10, 20, 50, 100, 140, 180, 220, 260];
   const chosenLength = tweetLengths[Math.floor(Math.random() * tweetLengths.length)];
 
   // Build the final prompt, explicitly injecting the chosen randomTheme and randomOpening
@@ -389,7 +389,7 @@ function isOwnTweet(tweet) {
 }
 
 // Use Twitter’s recent search to find interesting tweets
-async function searchRecentTweets(query, maxResults = 20) {
+async function searchRecentTweets(query, maxResults = 5) {
   const res = await twitterClient.v2.search(query, {
     'tweet.fields': 'author_id,conversation_id,created_at,public_metrics',
     max_results: maxResults,
@@ -441,7 +441,7 @@ async function postReply(tweetId, replyText) {
  * - per-run limit of replies
  */
 exports.proactiveReplyBot = functions.pubsub
-  .schedule('every 30 minutes')
+  .schedule('every 10 minutes')
   .onRun(async () => {
     try {
       // Topics to search for – change these to your niche

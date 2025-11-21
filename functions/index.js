@@ -32,10 +32,10 @@ const twitterClient = new TwitterApi({
 });
 
 // ====== TUNABLE PARAMETERS FOR PROACTIVE BOT ======
-const PROACTIVE_MAX_SEARCH_RESULTS = 50;  // how many tweets to pull from search
+const PROACTIVE_MAX_SEARCH_RESULTS = 100;  // how many tweets to pull from search
 const PROACTIVE_MAX_REPLIES_PER_RUN = 3;  // how many replies to send each run
-const MIN_LIKES_FOR_ENGAGEMENT = 5;       // minimum tweet likes
-const MIN_FOLLOWERS_FOR_AUTHOR = 200;     // minimum followers for account
+const MIN_LIKES_FOR_ENGAGEMENT = 0;       // minimum tweet likes
+const MIN_FOLLOWERS_FOR_AUTHOR = 0;     // minimum followers for account
 // ================================================
 
 // Function to generate tweet content using OpenAI via Axios

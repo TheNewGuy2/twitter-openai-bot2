@@ -546,35 +546,51 @@ exports.proactiveReplyBot = functions.pubsub
 
       console.log(`Total tweets fetched for proactive search: ${tweets.length}`);
 
-      let candidates = [];
-      let usedThreshold = null;
+let candidates = [];
+const chosenIds = new Set();
+const usedThresholds = [];
 
-      for (const threshold of LIKE_THRESHOLDS) {
-        const filtered = tweets.filter((t) => {
-          if (isOwnTweet(t)) return false;
-          if (!isQuestionTweet(t)) return false;
-          if (!isHighValueTweet(t, userMap, threshold, MIN_RETWEETS_FOR_ENGAGEMENT)) return false;
-          return true;
-        });
-        console.log(
-          `Threshold ${threshold}: ${filtered.length} tweets passed high-value filters.`
-        );
+for (const threshold of LIKE_THRESHOLDS) {
+  const filtered = tweets.filter((t) => {
+    if (isOwnTweet(t)) return false;
+    if (!isQuestionTweet(t)) return false;
+    if (chosenIds.has(t.id)) return false; // don't re-select same tweet
+    if (!isHighValueTweet(t, userMap, threshold, MIN_RETWEETS_FOR_ENGAGEMENT)) return false;
+    return true;
+  });
 
-        if (filtered.length >= PROACTIVE_MAX_REPLIES_PER_RUN || threshold === 0) {
-          candidates = filtered.slice(0, PROACTIVE_MAX_REPLIES_PER_RUN);
-          usedThreshold = threshold;
-          break;
-        }
-      }
+  console.log(
+    `Threshold ${threshold}: ${filtered.length} tweets passed high-value filters.`
+  );
 
-      if (!candidates.length) {
-        console.log('No candidates found even after relaxing thresholds.');
-        return null;
-      }
+  if (filtered.length > 0) {
+    usedThresholds.push(threshold);
 
-      console.log(
-        `Using threshold ${usedThreshold}, replying to ${candidates.length} tweets.`
-      );
+    const remainingNeeded = PROACTIVE_MAX_REPLIES_PER_RUN - candidates.length;
+    const toTake = filtered.slice(0, remainingNeeded);
+
+    for (const tweet of toTake) {
+      candidates.push(tweet);
+      chosenIds.add(tweet.id);
+    }
+
+    // If we've reached the target number of candidates, stop
+    if (candidates.length >= PROACTIVE_MAX_REPLIES_PER_RUN) {
+      break;
+    }
+  }
+}
+
+if (!candidates.length) {
+  console.log('No candidates found even after relaxing thresholds.');
+  return null;
+}
+
+console.log(
+  `Using thresholds [${usedThresholds.join(
+    ', '
+  )}], replying to ${candidates.length} tweets.`
+);
 
       for (const tweet of candidates) {
         // Skip if we've already proactively replied to this tweet

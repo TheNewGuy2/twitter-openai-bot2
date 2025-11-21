@@ -37,7 +37,7 @@ const PROACTIVE_MAX_REPLIES_PER_RUN = 3;   // how many replies to send each run
 
 // These are *baseline* thresholds. Likes threshold will be ADAPTIVE via LIKE_THRESHOLDS below.
 const MIN_FOLLOWERS_FOR_AUTHOR = 150;      // minimum followers for account
-
+const MIN_RETWEETS_FOR_ENGAGEMENT = 1;     // minimum retweets for engagement (tuneable)
 // Likes thresholds to try, in order. The bot will relax down this list until it finds enough.
 const LIKE_THRESHOLDS = [20, 10, 5, 2, 0];
 // ================================================
@@ -456,21 +456,22 @@ function isQuestionTweet(tweet) {
 }
 
 // Check engagement & author quality with a *dynamic* minLikes threshold
-function isHighValueTweet(tweet, userMap, minLikes) {
+function isHighValueTweet(tweet, userMap, minLikes, minRetweets) {
   if (!tweet) return false;
 
   const metrics = tweet.public_metrics || {};
   const likes = metrics.like_count || 0;
+  const retweets = metrics.retweet_count || 0;
 
   const user = userMap.get(tweet.author_id);
   const followers = user?.public_metrics?.followers_count || 0;
 
   if (likes < minLikes) return false;
+  if (retweets < minRetweets) return false;
   if (followers < MIN_FOLLOWERS_FOR_AUTHOR) return false;
 
   return true;
 }
-
 // Generate an AI reply to someone else’s tweet (proactive)
 async function generateProactiveReply(tweet) {
   const prompt = `
@@ -552,10 +553,9 @@ exports.proactiveReplyBot = functions.pubsub
         const filtered = tweets.filter((t) => {
           if (isOwnTweet(t)) return false;
           if (!isQuestionTweet(t)) return false;
-          if (!isHighValueTweet(t, userMap, threshold)) return false;
+          if (!isHighValueTweet(t, userMap, threshold, MIN_RETWEETS_FOR_ENGAGEMENT)) return false;
           return true;
         });
-
         console.log(
           `Threshold ${threshold}: ${filtered.length} tweets passed high-value filters.`
         );

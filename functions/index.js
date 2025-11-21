@@ -32,10 +32,14 @@ const twitterClient = new TwitterApi({
 });
 
 // ====== TUNABLE PARAMETERS FOR PROACTIVE BOT ======
-const PROACTIVE_MAX_SEARCH_RESULTS = 1200;  // how many tweets to pull from search
-const PROACTIVE_MAX_REPLIES_PER_RUN = 2;  // how many replies to send each run
-const MIN_LIKES_FOR_ENGAGEMENT = 1;       // minimum tweet likes
-const MIN_FOLLOWERS_FOR_AUTHOR = 500;     // minimum followers for account
+const PROACTIVE_MAX_SEARCH_RESULTS = 800;   // how many tweets to pull from search (via pagination)
+const PROACTIVE_MAX_REPLIES_PER_RUN = 3;   // how many replies to send each run
+
+// These are *baseline* thresholds. Likes threshold will be ADAPTIVE via LIKE_THRESHOLDS below.
+const MIN_FOLLOWERS_FOR_AUTHOR = 150;      // minimum followers for account
+
+// Likes thresholds to try, in order. The bot will relax down this list until it finds enough.
+const LIKE_THRESHOLDS = [20, 10, 5, 2, 0];
 // ================================================
 
 // Function to generate tweet content using OpenAI via Axios
@@ -395,7 +399,7 @@ function isOwnTweet(tweet) {
   return String(tweet.author_id) === String(twitterUserId);
 }
 
-// Use Twitter’s recent search to find interesting tweets + user metrics
+// Use Twitter’s recent search to find interesting tweets + user metrics (with pagination)
 async function searchRecentTweets(query, desiredCount = 100) {
   let allTweets = [];
   const userMap = new Map();
@@ -404,8 +408,8 @@ async function searchRecentTweets(query, desiredCount = 100) {
   while (allTweets.length < desiredCount) {
     const remaining = desiredCount - allTweets.length;
 
-    // Twitter requires 10–100 for max_results
-    // If remaining < 10, it's not worth calling again – just stop.
+    // Twitter requires 10–100 for max_results.
+    // If remaining < 10 and we already have some tweets, just stop.
     if (remaining < 10 && allTweets.length > 0) {
       break;
     }
@@ -435,8 +439,7 @@ async function searchRecentTweets(query, desiredCount = 100) {
     const meta = res.meta || res._realData?.meta;
     nextToken = meta?.next_token;
 
-    // No more pages
-    if (!nextToken) break;
+    if (!nextToken) break; // no more pages
   }
 
   console.log(
@@ -444,28 +447,26 @@ async function searchRecentTweets(query, desiredCount = 100) {
   );
 
   return { tweets: allTweets, userMap };
-}// Check if tweet likely contains a question
+}
+
+// Check if tweet likely contains a question
 function isQuestionTweet(tweet) {
   if (!tweet || !tweet.text) return false;
   return tweet.text.includes('?');
 }
 
-// Check engagement & author quality
-function isHighValueTweet(tweet, userMap) {
+// Check engagement & author quality with a *dynamic* minLikes threshold
+function isHighValueTweet(tweet, userMap, minLikes) {
   if (!tweet) return false;
 
   const metrics = tweet.public_metrics || {};
   const likes = metrics.like_count || 0;
-  const retweets = metrics.retweet_count || 0;
 
   const user = userMap.get(tweet.author_id);
   const followers = user?.public_metrics?.followers_count || 0;
 
-  if (likes < MIN_LIKES_FOR_ENGAGEMENT) return false;
+  if (likes < minLikes) return false;
   if (followers < MIN_FOLLOWERS_FOR_AUTHOR) return false;
-
-  // Optional: require some retweets
-  // if (retweets < 1) return false;
 
   return true;
 }
@@ -506,29 +507,26 @@ async function postReply(tweetId, replyText) {
  * Scheduled function: proactively replies to interesting/high-value tweets
  * not already talking to you.
  *
- * Now:
- * - searches up to PROACTIVE_MAX_SEARCH_RESULTS tweets
- * - filters for:
+ * Adaptive likes logic:
+ * - Try LIKE_THRESHOLDS = [20,10,5,2,0] in order
+ * - At each level, require:
  *    - not your own
- *    - has a question mark
- *    - enough likes
- *    - author with enough followers
- * - replies to up to PROACTIVE_MAX_REPLIES_PER_RUN per run
+ *    - has a '?'
+ *    - likes >= threshold
+ *    - followers >= MIN_FOLLOWERS_FOR_AUTHOR
+ * - As soon as we have >= PROACTIVE_MAX_REPLIES_PER_RUN, stop and use those
+ * - If none at high thresholds, we gracefully fall back to lower ones
  */
 exports.proactiveReplyBot = functions.pubsub
-  .schedule('every 45 minutes') // every 5 hours
+  .schedule('every 300 minutes') // every 5 hours
   .onRun(async () => {
     try {
       // Topics to search for – change these to your niche
       const topics = [
         'nft',
-        'crypto',
-        'bitcoin',
         '"generative art"',
         '"ai art"',
         '"bitcoin ordinals"',
-        '"base chain"',
-        '"base network"',
       ];
 
       const query = `${topics.join(' OR ')} -is:retweet -is:reply lang:en`;
@@ -545,19 +543,38 @@ exports.proactiveReplyBot = functions.pubsub
         return null;
       }
 
-      // Filter: not your own, must be a question, and high value
-      const filtered = tweets.filter((t) => {
-        if (isOwnTweet(t)) return false;
-        if (!isQuestionTweet(t)) return false;
-        if (!isHighValueTweet(t, userMap)) return false;
-        return true;
-      });
+      console.log(`Total tweets fetched for proactive search: ${tweets.length}`);
+
+      let candidates = [];
+      let usedThreshold = null;
+
+      for (const threshold of LIKE_THRESHOLDS) {
+        const filtered = tweets.filter((t) => {
+          if (isOwnTweet(t)) return false;
+          if (!isQuestionTweet(t)) return false;
+          if (!isHighValueTweet(t, userMap, threshold)) return false;
+          return true;
+        });
+
+        console.log(
+          `Threshold ${threshold}: ${filtered.length} tweets passed high-value filters.`
+        );
+
+        if (filtered.length >= PROACTIVE_MAX_REPLIES_PER_RUN || threshold === 0) {
+          candidates = filtered.slice(0, PROACTIVE_MAX_REPLIES_PER_RUN);
+          usedThreshold = threshold;
+          break;
+        }
+      }
+
+      if (!candidates.length) {
+        console.log('No candidates found even after relaxing thresholds.');
+        return null;
+      }
 
       console.log(
-        `Found ${tweets.length} tweets, ${filtered.length} passed filters.`
+        `Using threshold ${usedThreshold}, replying to ${candidates.length} tweets.`
       );
-
-      const candidates = filtered.slice(0, PROACTIVE_MAX_REPLIES_PER_RUN); // reply to up to N per run
 
       for (const tweet of candidates) {
         // Skip if we've already proactively replied to this tweet

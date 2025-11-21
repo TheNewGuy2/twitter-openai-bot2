@@ -31,6 +31,13 @@ const twitterClient = new TwitterApi({
   accessSecret: twitterAccessTokenSecret,
 });
 
+// ====== TUNABLE PARAMETERS FOR PROACTIVE BOT ======
+const PROACTIVE_MAX_SEARCH_RESULTS = 50;  // how many tweets to pull from search
+const PROACTIVE_MAX_REPLIES_PER_RUN = 3;  // how many replies to send each run
+const MIN_LIKES_FOR_ENGAGEMENT = 5;       // minimum tweet likes
+const MIN_FOLLOWERS_FOR_AUTHOR = 200;     // minimum followers for account
+// ================================================
+
 // Function to generate tweet content using OpenAI via Axios
 async function generateTweet(prompt) {
   try {
@@ -388,15 +395,53 @@ function isOwnTweet(tweet) {
   return String(tweet.author_id) === String(twitterUserId);
 }
 
-// Use Twitter’s recent search to find interesting tweets
+// Use Twitter’s recent search to find interesting tweets + user metrics
 async function searchRecentTweets(query, maxResults = 5) {
   const res = await twitterClient.v2.search(query, {
     'tweet.fields': 'author_id,conversation_id,created_at,public_metrics',
+    expansions: 'author_id',
+    'user.fields': 'public_metrics',
     max_results: maxResults,
   });
 
-  const tweets = res.data || res._realData?.data || [];
-  return tweets;
+  const tweets = res.tweets || res.data || res._realData?.data || [];
+  const users =
+    (res.includes && res.includes.users) ||
+    (res._realData && res._realData.includes && res._realData.includes.users) ||
+    [];
+
+  const userMap = new Map();
+  for (const u of users) {
+    userMap.set(u.id, u);
+  }
+
+  return { tweets, userMap };
+}
+
+// Check if tweet likely contains a question
+function isQuestionTweet(tweet) {
+  if (!tweet || !tweet.text) return false;
+  return tweet.text.includes('?');
+}
+
+// Check engagement & author quality
+function isHighValueTweet(tweet, userMap) {
+  if (!tweet) return false;
+
+  const metrics = tweet.public_metrics || {};
+  const likes = metrics.like_count || 0;
+  const retweets = metrics.retweet_count || 0;
+
+  const user = userMap.get(tweet.author_id);
+  const followers = user?.public_metrics?.followers_count || 0;
+
+  if (likes < MIN_LIKES_FOR_ENGAGEMENT) return false;
+  if (followers < MIN_FOLLOWERS_FOR_AUTHOR) return false;
+
+  // Optional: require some retweets
+  // if (retweets < 1) return false;
+
+  return true;
 }
 
 // Generate an AI reply to someone else’s tweet (proactive)
@@ -432,16 +477,20 @@ async function postReply(tweetId, replyText) {
 }
 
 /**
- * Scheduled function: proactively replies to interesting tweets
+ * Scheduled function: proactively replies to interesting/high-value tweets
  * not already talking to you.
  *
- * You can tune:
- * - schedule ("every 30 minutes")
- * - query (keywords)
- * - per-run limit of replies
+ * Now:
+ * - searches up to PROACTIVE_MAX_SEARCH_RESULTS tweets
+ * - filters for:
+ *    - not your own
+ *    - has a question mark
+ *    - enough likes
+ *    - author with enough followers
+ * - replies to up to PROACTIVE_MAX_REPLIES_PER_RUN per run
  */
 exports.proactiveReplyBot = functions.pubsub
-  .schedule('every 10 minutes')
+  .schedule('every 300 minutes') // every 5 hours
   .onRun(async () => {
     try {
       // Topics to search for – change these to your niche
@@ -456,20 +505,35 @@ exports.proactiveReplyBot = functions.pubsub
 
       console.log('Proactive search query:', query);
 
-      const tweets = await searchRecentTweets(query, 30);
+      const { tweets, userMap } = await searchRecentTweets(
+        query,
+        PROACTIVE_MAX_SEARCH_RESULTS
+      );
 
       if (!tweets.length) {
         console.log('No tweets found for proactive search.');
         return null;
       }
 
-      // Filter: not your own tweet, basic sanity checks
-      const candidates = tweets.filter((t) => !isOwnTweet(t)).slice(0, 5); // limit to 5 per run
+      // Filter: not your own, must be a question, and high value
+      const filtered = tweets.filter((t) => {
+        if (isOwnTweet(t)) return false;
+        if (!isQuestionTweet(t)) return false;
+        if (!isHighValueTweet(t, userMap)) return false;
+        return true;
+      });
+
+      console.log(
+        `Found ${tweets.length} tweets, ${filtered.length} passed filters.`
+      );
+
+      const candidates = filtered.slice(0, PROACTIVE_MAX_REPLIES_PER_RUN); // reply to up to N per run
 
       for (const tweet of candidates) {
         // Skip if we've already proactively replied to this tweet
         const already = await hasRepliedProactively(tweet.id);
         if (already) {
+          console.log('Already replied to tweet', tweet.id);
           continue;
         }
 

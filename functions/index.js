@@ -33,7 +33,7 @@ const twitterClient = new TwitterApi({
 
 // ====== TUNABLE PARAMETERS FOR PROACTIVE BOT ======
 const PROACTIVE_MAX_SEARCH_RESULTS = 100;  // how many tweets to pull from search
-const PROACTIVE_MAX_REPLIES_PER_RUN = 3;  // how many replies to send each run
+const PROACTIVE_MAX_REPLIES_PER_RUN = 2;  // how many replies to send each run
 const MIN_LIKES_FOR_ENGAGEMENT = 0;       // minimum tweet likes
 const MIN_FOLLOWERS_FOR_AUTHOR = 0;     // minimum followers for account
 // ================================================
@@ -490,15 +490,19 @@ async function postReply(tweetId, replyText) {
  * - replies to up to PROACTIVE_MAX_REPLIES_PER_RUN per run
  */
 exports.proactiveReplyBot = functions.pubsub
-  .schedule('every 300 minutes') // every 5 hours
+  .schedule('every 10 minutes') // every 5 hours
   .onRun(async () => {
     try {
       // Topics to search for – change these to your niche
       const topics = [
         'nft',
+        'crypto',
+        'bitcoin',
         '"generative art"',
         '"ai art"',
         '"bitcoin ordinals"',
+        '"base chain"',
+        '"base network"',
       ];
 
       const query = `${topics.join(' OR ')} -is:retweet -is:reply lang:en`;

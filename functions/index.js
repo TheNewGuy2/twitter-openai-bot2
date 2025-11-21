@@ -398,12 +398,19 @@ function isOwnTweet(tweet) {
 // Use Twitter’s recent search to find interesting tweets + user metrics
 async function searchRecentTweets(query, desiredCount = 100) {
   let allTweets = [];
-  let userMap = new Map();
+  const userMap = new Map();
   let nextToken = null;
 
   while (allTweets.length < desiredCount) {
     const remaining = desiredCount - allTweets.length;
-    const maxResultsThisCall = Math.min(100, remaining); // Twitter max per request = 100
+
+    // Twitter requires 10–100 for max_results
+    // If remaining < 10, it's not worth calling again – just stop.
+    if (remaining < 10 && allTweets.length > 0) {
+      break;
+    }
+
+    const maxResultsThisCall = Math.min(100, Math.max(10, remaining));
 
     const res = await twitterClient.v2.search(query, {
       'tweet.fields': 'author_id,conversation_id,created_at,public_metrics',
@@ -425,14 +432,19 @@ async function searchRecentTweets(query, desiredCount = 100) {
 
     allTweets = allTweets.concat(tweets);
 
-    // Stop if no more pages
-    nextToken = res.meta?.next_token;
+    const meta = res.meta || res._realData?.meta;
+    nextToken = meta?.next_token;
+
+    // No more pages
     if (!nextToken) break;
   }
 
+  console.log(
+    `searchRecentTweets: collected ${allTweets.length} tweets for query "${query}"`
+  );
+
   return { tweets: allTweets, userMap };
-}
-// Check if tweet likely contains a question
+}// Check if tweet likely contains a question
 function isQuestionTweet(tweet) {
   if (!tweet || !tweet.text) return false;
   return tweet.text.includes('?');

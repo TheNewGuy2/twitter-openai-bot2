@@ -32,10 +32,10 @@ const twitterClient = new TwitterApi({
 });
 
 // ====== TUNABLE PARAMETERS FOR PROACTIVE BOT ======
-const PROACTIVE_MAX_SEARCH_RESULTS = 100;  // how many tweets to pull from search
+const PROACTIVE_MAX_SEARCH_RESULTS = 800;  // how many tweets to pull from search
 const PROACTIVE_MAX_REPLIES_PER_RUN = 2;  // how many replies to send each run
-const MIN_LIKES_FOR_ENGAGEMENT = 2;       // minimum tweet likes
-const MIN_FOLLOWERS_FOR_AUTHOR = 10;     // minimum followers for account
+const MIN_LIKES_FOR_ENGAGEMENT = 3;       // minimum tweet likes
+const MIN_FOLLOWERS_FOR_AUTHOR = 150;     // minimum followers for account
 // ================================================
 
 // Function to generate tweet content using OpenAI via Axios
@@ -396,28 +396,42 @@ function isOwnTweet(tweet) {
 }
 
 // Use Twitter’s recent search to find interesting tweets + user metrics
-async function searchRecentTweets(query, maxResults = 5) {
-  const res = await twitterClient.v2.search(query, {
-    'tweet.fields': 'author_id,conversation_id,created_at,public_metrics',
-    expansions: 'author_id',
-    'user.fields': 'public_metrics',
-    max_results: maxResults,
-  });
+async function searchRecentTweets(query, desiredCount = 100) {
+  let allTweets = [];
+  let userMap = new Map();
+  let nextToken = null;
 
-  const tweets = res.tweets || res.data || res._realData?.data || [];
-  const users =
-    (res.includes && res.includes.users) ||
-    (res._realData && res._realData.includes && res._realData.includes.users) ||
-    [];
+  while (allTweets.length < desiredCount) {
+    const remaining = desiredCount - allTweets.length;
+    const maxResultsThisCall = Math.min(100, remaining); // Twitter max per request = 100
 
-  const userMap = new Map();
-  for (const u of users) {
-    userMap.set(u.id, u);
+    const res = await twitterClient.v2.search(query, {
+      'tweet.fields': 'author_id,conversation_id,created_at,public_metrics',
+      expansions: 'author_id',
+      'user.fields': 'public_metrics',
+      max_results: maxResultsThisCall,
+      next_token: nextToken || undefined,
+    });
+
+    const tweets = res.tweets || res.data || res._realData?.data || [];
+    const users =
+      (res.includes && res.includes.users) ||
+      (res._realData && res._realData.includes && res._realData.includes.users) ||
+      [];
+
+    for (const u of users) {
+      userMap.set(u.id, u);
+    }
+
+    allTweets = allTweets.concat(tweets);
+
+    // Stop if no more pages
+    nextToken = res.meta?.next_token;
+    if (!nextToken) break;
   }
 
-  return { tweets, userMap };
+  return { tweets: allTweets, userMap };
 }
-
 // Check if tweet likely contains a question
 function isQuestionTweet(tweet) {
   if (!tweet || !tweet.text) return false;

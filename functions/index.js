@@ -32,11 +32,11 @@ const twitterClient = new TwitterApi({
 });
 
 // ====== TUNABLE PARAMETERS FOR PROACTIVE BOT ======
-const PROACTIVE_MAX_SEARCH_RESULTS = 800;   // how many tweets to pull from search (via pagination)
+const PROACTIVE_MAX_SEARCH_RESULTS = 250;   // how many tweets to pull from search (via pagination)
 const PROACTIVE_MAX_REPLIES_PER_RUN = 3;   // how many replies to send each run
 
 // These are *baseline* thresholds. Likes threshold will be ADAPTIVE via LIKE_THRESHOLDS below.
-const MIN_FOLLOWERS_FOR_AUTHOR = 150;      // minimum followers for account
+const MIN_FOLLOWERS_FOR_AUTHOR = 500;      // minimum followers for account
 const MIN_RETWEETS_FOR_ENGAGEMENT = 1;     // minimum retweets for engagement (tuneable)
 // Likes thresholds to try, in order. The bot will relax down this list until it finds enough.
 const LIKE_THRESHOLDS = [20, 10, 5, 2, 0];
@@ -519,7 +519,7 @@ async function postReply(tweetId, replyText) {
  * - If none at high thresholds, we gracefully fall back to lower ones
  */
 exports.proactiveReplyBot = functions.pubsub
-  .schedule('every 300 minutes') // every 5 hours
+  .schedule('every 360 minutes') // every 6 hours
   .onRun(async () => {
     try {
       // Topics to search for – change these to your niche

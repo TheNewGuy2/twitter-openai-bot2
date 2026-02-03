@@ -55,6 +55,9 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       # If you’re still using functions:config (Runtime Config), set them here.
+      - name: Enable legacy runtimeconfig commands (temporary)
+        run: firebase experiments:enable legacyRuntimeConfigCommands
+
       - name: Set Firebase Functions config
         run: |
           firebase functions:config:set openai.api_key="${{ secrets.OPENAI_API_KEY }}" --project $GCP_PROJECT --non-interactive

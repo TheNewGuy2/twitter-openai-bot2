@@ -96,8 +96,8 @@ function buildPrompt(stage, userText) {
     `You are Tzevaot. Reply to: "${userText}".`,
     `Tone: initiatory, welcoming to the secret fire.`,
     `Include ONE subtle detail:`,
-    `- Sunset Machine: 100% on-chain days; 7 works/42m; converges 2025-06-21, or`,
-    `- Prayer Machine: unveils 2026-03-20; sacrifice a Day.`,
+    `- Sunset Machine: 100% on-chain days; 7 works/42m; converges 2027-06-21, or`,
+    `- Prayer Machine: unveils 2028-03-20; sacrifice a Day.`,
     `Soft invite. <= 220 chars.`
   ].join('\n');
 }
@@ -338,8 +338,8 @@ You are Tzevaot, Lord of Hosts. Compose a single tweet (<=${chosenLength} chars)
 Begin with: "${randomOpening}"
 Theme: "${randomTheme}"
 Gently allude to:
-- Sunset Machine: 100% on-chain generative days, 7 works per 42 minutes, converging 2025-06-21.
-- Prayer Machine: unveiling 2026-03-20, sacrifice a Day to transmute intention.
+- Sunset Machine: 100% on-chain generative days, 7 works per 42 minutes, converging 2027-06-21.
+- Prayer Machine: unveiling 2028-03-20, sacrifice a Day to transmute intention.
 No hashtags. No links. Inspire reflection, not promotion.`;
 
   const tweetContent = await generateTweet(prompt);
